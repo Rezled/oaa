@@ -62,6 +62,9 @@ function BossSpawner:SpawnBossAtPit (pit)
   local tierIndex = math.min(#options, pit.killCount)
   local bossTier = tierIndex - 1 + startTier
   local bossName = options[tierIndex]
+  if type(bossName) ~= 'string' then
+    bossName = bossName[math.random(1, #bossName)]
+  end
   local isProtected = bossList == 1 and pit.killCount == 1
 
   DebugPrint('Spawning ' .. bossName .. ' with protection ' .. tostring(isProtected))
@@ -106,7 +109,7 @@ function BossSpawner:SpawnBoss (pit, boss, bossTier, isProtected)
 
   local bossAI = BossAI:Create(bossHandle, {
     tier = bossTier,
-    customAgro = bossPrefix ~= 'npc_dota_boss_tier_',
+    customAgro = bossPrefix ~= 'npc_dota_boss_tier_' and bossPrefix ~= 'npc_dota_boss_simpl',
     owner = team,
     isProtected = isProtected
   })
