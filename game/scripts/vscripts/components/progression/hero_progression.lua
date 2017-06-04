@@ -1,8 +1,6 @@
 if HeroProgression == nil then
     HeroProgression = class({})
     Debug.EnabledModules['progression:*'] = false
-
-    ChatCommand:LinkCommand("-levelup", "OnLevelUpChatCmd", HeroProgression)
 end
 
 GameEvents:OnPlayerLevelUp(function(keys)
@@ -34,6 +32,7 @@ function HeroProgression:Init()
     "Intellect"
   }
 
+  FilterManager:AddFilter(FilterManager.ModifyExperience, self, Dynamic_Wrap(HeroProgression, "ExperienceFilter"))
   self:RegisterCustomLevellingPatterns()
 end
 
@@ -150,8 +149,8 @@ function HeroProgression:ProcessAbilityPointGain(hero, level)
   end
 end
 
-function HeroProgression:OnLevelUpChatCmd(keys)
-  local hero = PlayerResource:GetSelectedHeroEntity(keys.playerid)
-  DebugPrint('Levelling up ' .. hero:GetName() .. ' now at level ' .. hero:GetLevel())
-  hero:HeroLevelUp(true)
+function HeroProgression:ExperienceFilter(keys)
+  local playerID = keys.player_id_const
+
+  return PlayerResource:GetConnectionState(playerID) == DOTA_CONNECTION_STATE_CONNECTED
 end

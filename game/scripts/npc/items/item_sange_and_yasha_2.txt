@@ -42,7 +42,7 @@
     "AbilityTextureName"                                  "custom/sange_and_yasha_2"
     // Stats
     //-------------------------------------------------------------------------------------------------------------
-    "MaxUpgradeLevel"                                     "2"
+    "MaxUpgradeLevel"                                     "4"
     "ItemBaseLevel"                                       "2"
 
     // Item Info
@@ -62,17 +62,17 @@
       "01"
       {
         "var_type"                                        "FIELD_INTEGER"
-        "bonus_damage"                                    "16 24"
+        "bonus_damage"                                    "16 24 32 48"
       }
       "02"
       {
         "var_type"                                        "FIELD_INTEGER"
-        "bonus_strength"                                  "16 24"
+        "bonus_strength"                                  "16 24 32 48"
       }
       "03"
       {
         "var_type"                                        "FIELD_INTEGER"
-        "bonus_agility"                                   "16 24"
+        "bonus_agility"                                   "16 24 32 48"
       }
       "04"
       {
@@ -92,18 +92,18 @@
       "07"
       {
         "var_type"                                        "FIELD_INTEGER"
-        "maim_slow_movement"                              "-26 -30"
+        "maim_slow_movement"                              "-26 -30 -36 -45"
       }
       "08"
       {
         "var_type"                                        "FIELD_INTEGER"
-        "maim_slow_attack"                                "-26 -30"
+        "maim_slow_attack"                                "-26 -30 -36 -45"
       }
       "09"
       {
         "var_type"                                        "FIELD_INTEGER"
         "maim_slow_movement_range"                        "-13"
-      }      
+      }
       "10"
       {
         "var_type"                                        "FIELD_INTEGER"

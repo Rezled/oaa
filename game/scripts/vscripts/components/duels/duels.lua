@@ -3,9 +3,6 @@ if Duels == nil then
   DebugPrint ( 'Creating new Duels object.' )
   Duels = class({})
   Debug.EnabledModules['duels:duels'] = true
-
-  ChatCommand:LinkCommand("-duel", "StartDuel", Duels)
-  ChatCommand:LinkCommand("-end_duel", "EndDuel", Duels)
 end
 
 --[[
@@ -60,6 +57,10 @@ function Duels:Init ()
   Timers:CreateTimer(1, function ()
     Duels:StartDuel()
   end)
+
+  ChatCommand:LinkCommand("-duel", Dynamic_Wrap(Duels, "StartDuel"), Duels)
+  ChatCommand:LinkCommand("-end_duel", Dynamic_Wrap(Duels, "EndDuel"), Duels)
+  ChatCommand:LinkCommand("-tptest", Dynamic_Wrap(Duels, "TestSafeTeleport"), Duels)
 end
 
 local DUEL_IS_STARTING = 21
@@ -83,6 +84,10 @@ function Duels:CheckDuelStatus (hero)
     if foundIt or player.id ~= playerId then
       return
     end
+    if not player.assigned or not player.duelNumber then
+      return
+    end
+
     foundIt = true
     local scoreIndex = player.team .. 'Living' .. player.duelNumber
     DebugPrint('Found dead player on ' .. player.team .. ' team with scoreindex ' .. scoreIndex)
@@ -195,11 +200,8 @@ function Duels:ActuallyStartDuel ()
     goodGuy.duelNumber = 1
     badGuy.duelNumber = 1
 
-    self:SafeTeleport(goodHero, spawn1, 150)
-    self:SafeTeleport(badHero, spawn2, 150)
-    --FindClearSpaceForUnit(goodHero, spawn1, true)
-    --FindClearSpaceForUnit(badHero, spawn2, true)
-
+    self:SafeTeleportAll(goodHero, spawn1, 150)
+    self:SafeTeleportAll(badHero, spawn2, 150)
 
     Duels.zone1.addPlayer(goodGuy.id)
     Duels.zone1.addPlayer(badGuy.id)
@@ -237,8 +239,8 @@ function Duels:ActuallyStartDuel ()
     goodGuy.duelNumber = 2
     badGuy.duelNumber = 2
 
-    FindClearSpaceForUnit(goodHero, spawn1, true)
-    FindClearSpaceForUnit(badHero, spawn2, true)
+    self:SafeTeleportAll(goodHero, spawn1, 150)
+    self:SafeTeleportAll(badHero, spawn2, 150)
 
     Duels.zone2.addPlayer(goodGuy.id)
     Duels.zone2.addPlayer(badGuy.id)
@@ -334,9 +336,25 @@ function Duels:EndDuel ()
 
       Duels:RestorePlayerState (hero, state)
       Duels:MoveCameraToPlayer(state.id, hero)
+      Duels:PurgeAfterDuel(hero)
     end)
     DuelEndEvent.broadcast(true)
   end)
+end
+
+function Duels:PurgeAfterDuel (hero)
+  local modifierList = {
+    "modifier_rune_haste",
+    "modifier_rune_doubledamage",
+    "modifier_rune_invis",
+    "modifier_rune_hill_tripledamage",
+  }
+  for _,modifierName in ipairs(modifierList) do
+    local modifier = hero:FindModifierByName(modifierName)
+    if modifier then
+      modifier:Destroy()
+    end
+  end
 end
 
 function Duels:ResetPlayerState (hero)
@@ -405,7 +423,8 @@ function Duels:SavePlayerState (hero)
 end
 
 function Duels:RestorePlayerState (hero, state)
-  hero:SetAbsOrigin(state.location)
+  self:SafeTeleport(hero, state.location, 150)
+
   if state.hp > 0 then
     hero:SetHealth(state.hp)
   end
@@ -453,7 +472,48 @@ function Duels:AllPlayers (state, cb)
   end
 end
 
+function Duels:SafeTeleportAll(owner, location, maxDistance)
+  self:SafeTeleport(owner, location, maxDistance)
+  local children = FindUnitsInRadius(owner:GetTeam(),
+                                     owner:GetAbsOrigin(),
+                                     nil,
+                                     FIND_UNITS_EVERYWHERE,
+                                     DOTA_UNIT_TARGET_TEAM_FRIENDLY,
+                                     DOTA_UNIT_TARGET_BASIC,
+                                     DOTA_UNIT_TARGET_FLAG_PLAYER_CONTROLLED,
+                                     FIND_ANY_ORDER,
+                                     false)
+  for _,child in pairs(children) do
+    if child:HasMovementCapability() then
+      if child:GetPlayerOwner() == owner:GetPlayerOwner() then
+        self:SafeTeleport(child, location, maxDistance)
+      end
+    end
+  end
+end
+
 function Duels:SafeTeleport(unit, location, maxDistance)
+  if unit:FindModifierByName("modifier_life_stealer_infest") then
+    DebugPrint("Found LS infesting.")
+    local ability = unit:FindAbilityByName("life_stealer_consume")
+    if ability then
+      if not ability:IsActivated() then
+        error('Ability is not activated')
+      end
+      ExecuteOrderFromTable({
+        UnitIndex = unit:entindex(),
+        OrderType = DOTA_UNIT_ORDER_CAST_NO_TARGET,
+        AbilityIndex = ability:entindex(), --Optional.  Only used when casting abilities
+        Queue = 0 --Optional.  Used for queueing up abilities
+      })
+    else
+      error('Missing Ability "life_stealer_consume"')
+    end
+  end
+  if unit:IsOutOfGame() then
+    unit:RemoveModifierByName("modifier_obsidian_destroyer_astral_imprisonment_prison")
+  end
+  location = GetGroundPosition(location, unit)
   FindClearSpaceForUnit(unit, location, true)
   local distance = (location - unit:GetAbsOrigin()):Length2D()
   if distance > maxDistance then
@@ -461,4 +521,10 @@ function Duels:SafeTeleport(unit, location, maxDistance)
       self:SafeTeleport(unit, location, maxDistance)
     end)
   end
+end
+
+-- Test Duels:SafeTeleport function
+function Duels:TestSafeTeleport(keys)
+  local hero = PlayerResource:GetSelectedHeroEntity(keys.playerid)
+  self:SafeTeleportAll(hero, Vector(0, 0, 0), 150)
 end

@@ -1,6 +1,6 @@
 LinkLuaModifier( "modifier_octarine_vampirism_buff", "modifiers/modifier_octarine_vampirism_buff.lua", LUA_MODIFIER_MOTION_NONE )
 LinkLuaModifier( "modifier_item_satanic_core", "items/satanic_core.lua", LUA_MODIFIER_MOTION_NONE )
-LinkLuaModifier( "modifier_item_satanic_unholy", LUA_MODIFIER_MOTION_NONE )
+LinkLuaModifier( "modifier_satanic_core_unholy", "items/satanic_core.lua", LUA_MODIFIER_MOTION_NONE )
 
 --------------------------------------------------------------------------------
 
@@ -15,7 +15,7 @@ function item_satanic_core:OnSpellStart()
   local unholy_duration = self:GetSpecialValueFor( "unholy_duration" )
 
   EmitSoundOn( "DOTA_Item.Satanic.Activate", hCaster )
-  hCaster:AddNewModifier( hCaster, self, "modifier_item_satanic_unholy", { duration = unholy_duration } )
+  hCaster:AddNewModifier( hCaster, self, "modifier_satanic_core_unholy", { duration = unholy_duration } )
 end
 
 --------------------------------------------------------------------------------
@@ -37,13 +37,11 @@ end
 function modifier_item_satanic_core:OnCreated()
   self.lifesteal_percent = self:GetAbility():GetSpecialValueFor( "lifesteal_percent" )
   self.unholy_lifesteal_percent = self:GetAbility():GetSpecialValueFor( "unholy_lifesteal_percent" )
-  self.aura_radius = self:GetAbility():GetSpecialValueFor( "radius" )
 end
 
 function modifier_item_satanic_core:OnRefresh()
   self.lifesteal_percent = self:GetAbility():GetSpecialValueFor( "lifesteal_percent" )
   self.unholy_lifesteal_percent = self:GetAbility():GetSpecialValueFor( "unholy_lifesteal_percent" )
-  self.aura_radius = self:GetAbility():GetSpecialValueFor( "radius" )
 end
 
 function modifier_item_satanic_core:IsAura()
@@ -67,7 +65,7 @@ function modifier_item_satanic_core:GetAuraSearchFlags()
 end
 
 function modifier_item_satanic_core:GetAuraRadius()
-  return self.aura_radius
+  return 0
 end
 
 function modifier_item_satanic_core:IsPurgable()
@@ -81,7 +79,7 @@ function modifier_item_satanic_core:DeclareFunctions()
     MODIFIER_PROPERTY_HEALTH_BONUS,
     MODIFIER_PROPERTY_MANA_BONUS,
     MODIFIER_PROPERTY_COOLDOWN_PERCENTAGE,
-    MODIFIER_EVENT_ON_ATTACK_LANDED,
+    MODIFIER_EVENT_ON_TAKEDAMAGE,
   }
   return funcs
 end
@@ -106,18 +104,42 @@ function modifier_item_satanic_core:GetModifierPercentageCooldown()
   return self:GetAbility():GetSpecialValueFor( "bonus_cooldown" )
 end
 
-function modifier_item_satanic_core:OnAttackLanded( kv )
+function modifier_item_satanic_core:OnTakeDamage( kv )
   if IsServer() then
     local hCaster = self:GetParent()
-    if kv.attacker == hCaster then
+    -- Assume that no inflictor means damage was dealth from attack
+    if not kv.inflictor and kv.attacker == hCaster then
       local heal_percent = self.lifesteal_percent;
-      if hCaster:HasModifier("modifier_item_satanic_unholy") then
-        heal_percent = self.unholy_lifesteal_percent
+      if hCaster:HasModifier("modifier_satanic_core_unholy") then
+        heal_percent = self.lifesteal_percent + self.unholy_lifesteal_percent
       end
       ParticleManager:CreateParticle( "particles/generic_gameplay/generic_lifesteal.vpcf", PATTACH_ABSORIGIN_FOLLOW, hCaster )
-      hCaster:Heal( kv.damage * heal_percent / 100, hCaster)
+      local healAmount = kv.damage * heal_percent / 100
+      if healAmount > 0 then
+        hCaster:Heal( healAmount, hCaster)
+      end
     end
   end
 end
 
 --------------------------------------------------------------------------------
+
+modifier_satanic_core_unholy = class({})
+
+function modifier_satanic_core_unholy:DeclareFunctions()
+  return {
+    MODIFIER_PROPERTY_TOOLTIP
+  }
+end
+
+function modifier_satanic_core_unholy:OnTooltip()
+  return self:GetAbility():GetSpecialValueFor("unholy_lifesteal_total_tooltip")
+end
+
+function modifier_satanic_core_unholy:GetEffectName()
+  return "particles/items2_fx/satanic_buff.vpcf"
+end
+
+function modifier_satanic_core_unholy:GetEffectAttachType()
+  return PATTACH_ABSORIGIN_FOLLOW
+end

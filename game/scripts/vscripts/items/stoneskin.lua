@@ -10,6 +10,12 @@ end
 
 function item_stoneskin:GetAbilityTextureName()
   local baseIconName = self.BaseClass.GetAbilityTextureName(self)
+
+  -- Update state based on stacks of the intrinsic modifier
+  if self.intrinsicModifier and not self.intrinsicModifier:IsNull() then
+    self.stoneskinState = self.intrinsicModifier:GetStackCount()
+  end
+
   if self.stoneskinState == 2 then
     return baseIconName .. "_active"
   else
@@ -17,14 +23,17 @@ function item_stoneskin:GetAbilityTextureName()
   end
 end
 
-function item_stoneskin:OnToggle()
+function item_stoneskin:OnSpellStart()
   local activationDelay = self:GetSpecialValueFor("start_delay")
   local cooldownAfterDelay = self:GetSpecialValueFor("cooldown_after_delay")
   local caster = self:GetCaster()
 
+  -- Toggle state
+  self.serverStoneskinState = not self.serverStoneskinState
+
   if self:GetToggleState() then
     self:StartCooldown(activationDelay + cooldownAfterDelay)
-    self.IntrinsicModifier:SetStackCount(2)
+    self.intrinsicModifier:SetStackCount(2)
 
     EmitSoundOn("Hero_EarthSpirit.RollingBoulder.Loop", caster)
     Timers:CreateTimer(activationDelay, function()
@@ -35,18 +44,48 @@ function item_stoneskin:OnToggle()
   end
 end
 
+function item_stoneskin:GetToggleState()
+  if self.serverStoneskinState == nil then
+    self.serverStoneskinState = false
+  end
+  return self.serverStoneskinState
+end
+
+-- Set no mana cost for toggle off
+function item_stoneskin:GetManaCost(level)
+  local baseManaCost = self.BaseClass.GetManaCost(self, level)
+  if IsServer() then
+    if self:GetToggleState() then
+      return 0
+    else
+      return baseManaCost
+    end
+  elseif IsClient() then
+    -- Update state based on stacks of the intrinsic modifier
+    if self.intrinsicModifier and not self.intrinsicModifier:IsNull() then
+      self.stoneskinState = self.intrinsicModifier:GetStackCount()
+    end
+
+    if self.stoneskinState == 2 then
+      return 0
+    else
+      return baseManaCost
+    end
+  end
+end
+
 function item_stoneskin:ApplyStoneskin()
   local caster = self:GetCaster()
   caster:AddNewModifier(caster, self, "modifier_item_stoneskin_stone_armor", {})
   StopSoundOn("Hero_EarthSpirit.RollingBoulder.Loop", caster)
   EmitSoundOn("Hero_EarthSpirit.Petrify", caster)
-  self.IntrinsicModifier:SetStackCount(2)
+  self.intrinsicModifier:SetStackCount(2)
 end
 
 function item_stoneskin:RemoveStoneskin()
   local caster = self:GetCaster()
   caster:RemoveModifierByName("modifier_item_stoneskin_stone_armor")
-  self.IntrinsicModifier:SetStackCount(1)
+  self.intrinsicModifier:SetStackCount(1)
 end
 
 item_stoneskin_2 = class(item_stoneskin)
@@ -55,8 +94,8 @@ modifier_item_stoneskin = class({})
 
 function modifier_item_stoneskin:OnCreated()
   local ability = self:GetAbility()
+  ability.intrinsicModifier = self
   if IsServer() then
-    ability.IntrinsicModifier = self
 
     if ability:GetToggleState() then
       ability:ApplyStoneskin()
@@ -75,14 +114,14 @@ function modifier_item_stoneskin:OnDestroy()
   end
 end
 
-function modifier_item_stoneskin:OnStackCountChanged(numOldStacks)
-  -- Echo stack count to a property on the item so that it can be checked for
-  -- item icon purposes
-  if IsClient() then
-    local ability = self:GetAbility()
-    ability.stoneskinState = self:GetStackCount()
-  end
-end
+-- function modifier_item_stoneskin:OnStackCountChanged(numOldStacks)
+--   -- Echo stack count to a property on the item so that it can be checked for
+--   -- item icon purposes
+--   if IsClient() then
+--     local ability = self:GetAbility()
+--     ability.stoneskinState = self:GetStackCount()
+--   end
+-- end
 
 function modifier_item_stoneskin:DeclareFunctions()
   return {
@@ -96,6 +135,10 @@ end
 
 function modifier_item_stoneskin:IsHidden()
   return true
+end
+
+function modifier_item_stoneskin:IsPurgable()
+  return false
 end
 
 function modifier_item_stoneskin:GetAttributes()
@@ -130,6 +173,10 @@ function modifier_item_stoneskin_stone_armor:GetTexture()
     local baseIconName = ability.BaseClass.GetAbilityTextureName(ability)
     return baseIconName
   end
+end
+
+function modifier_item_stoneskin_stone_armor:IsPurgable()
+  return false
 end
 
 function modifier_item_stoneskin_stone_armor:GetStatusEffectName()

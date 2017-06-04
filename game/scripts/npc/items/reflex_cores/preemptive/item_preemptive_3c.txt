@@ -49,6 +49,7 @@
     "ItemShopTags"                                        "defense;support;mobility;hard_to_tag"
     "ItemQuality"                                         "epic"
     "ItemAliases"                                         "reflex;preemptive_3c"
+    "ItemDisassembleRule"                                 "DOTA_ITEM_DISASSEMBLE_ALWAYS"
     "ItemDeclarations"                                    "DECLARE_PURCHASES_TO_TEAMMATES | DECLARE_PURCHASES_IN_SPEECH | DECLARE_PURCHASES_TO_SPECTATORS"
 
     // Modifiers
@@ -91,7 +92,7 @@
 
     "Precache"
     {
-      "particle"                                          "particles/econ/items/faceless_void/faceless_void_mace_of_aeons/fv_chronosphere_aeons.vpcf"
+      "particle"                                          "particles/items/bubble_orb_base.vpcf"
       "soundfile"                                         "soundevents/game_sounds_heroes/game_sounds_arc_warden.vsndevts"
     }
   }
